@@ -57,7 +57,7 @@ func UpdateToken(ctx context.Context, token, user, item string) error {
 	return nil
 }
 
-// 假设每天有500w用户访问，5000000/86400 = 58，需要每秒清理58个令牌，才能防止令牌过多问题发生。
+// CleanSession 假设每天有500w用户访问，5000000/86400 = 58，需要每秒清理58个令牌，才能防止令牌过多问题发生。
 func CleanSession(ctx context.Context) {
 	for !QUIT {
 		// 获取目前已有令牌的数量
@@ -109,8 +109,8 @@ func AddToCart(ctx context.Context, session, item string, count int) error {
 	return nil
 }
 
-// 该缓存函数可以让网站在5分钟之内不再重复动态生成视图页面。
-// 查询本地redis延迟值通常低于1ms，查询位于同一个数据中心的延迟值通常低于5ms
+// CacheRequest 该缓存函数可以让网站在5分钟之内不再重复动态生成视图页面。
+// 查询本地redis延迟值通常低于1ms，查询位于同一个数据中心的延迟值通常低于5ms。
 func CacheRequest(ctx context.Context, request string, callback func(string) string) string {
 	// 对于不能被缓存的请求，直接调用回调函数
 	if !canCache(ctx, request) {
