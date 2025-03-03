@@ -9,7 +9,6 @@ import (
 
 	"github.com/chaos-io/chaos/logs"
 	"github.com/chaos-io/chaos/redis"
-	redis2 "github.com/redis/go-redis/v9"
 )
 
 var ctx = context.Background()
@@ -56,7 +55,7 @@ func PurchaseItem(buyerId, itemId, sellerId string, lprice int64) bool {
 
 	for time.Now().Unix() < end {
 		err := redis.Watch(ctx, func(tx *redis.Tx) error {
-			if _, err := tx.TxPipelined(ctx, func(pipeliner redis2.Pipeliner) error {
+			if _, err := tx.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
 				price := int64(tx.ZScore(ctx, "market:", item).Val())
 				funds, _ := tx.HGet(ctx, buyer, "funds").Int64()
 				if price != lprice || price > funds {
