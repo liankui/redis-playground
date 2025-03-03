@@ -74,3 +74,60 @@ func ReleaseLock(name, identifier string) bool {
 		}
 	}
 }
+
+// LUA实现
+
+func AcquireLockWithTimeout2(name string, acquireTimeout, lockTimeout float64) string {
+	identifier := ksuid.New().String()
+	name = "lock:" + name
+	finalLockTimeout := math.Ceil(lockTimeout)
+
+	luaScript := `
+if redis.call("exists", KEYS[1]) == 0 then
+    return redis.call("setex", KEYS[1], unpack(ARGV))
+end
+`
+
+	end := time.Now().UnixNano() + int64(acquireTimeout*1e9)
+	for time.Now().UnixNano() < end {
+		sha1, err := redis.ScriptLoad(ctx, luaScript)
+		if err != nil {
+			logs.Warnw("failed to acquire lock", "name", name, "message", identifier, "error", err)
+			break
+		}
+
+		eval, err := redis.EvalSha(ctx, sha1, []string{name}, finalLockTimeout, identifier)
+		if err != nil {
+			logs.Warnw("failed to acquire lock", "name", name, "message", identifier, "error", err)
+			break
+		}
+		logs.Debugw("acquired lock", "name", name, "eval", eval)
+
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	return ""
+}
+
+func ReleaseLock2(name, identifier string) bool {
+	name = "lock:" + name
+
+	luaScript := `
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1]) or true
+end
+`
+	sha1, err := redis.ScriptLoad(ctx, luaScript)
+	if err != nil {
+		logs.Warnw("failed to release lock", "name", name, "message", identifier, "error", err)
+		return false
+	}
+
+	_, err = redis.EvalSha(ctx, sha1, []string{name}, identifier)
+	if err != nil {
+		logs.Warnw("failed to release lock", "name", name, "message", identifier, "error", err)
+		return false
+	}
+
+	return true
+}
